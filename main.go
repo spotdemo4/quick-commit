@@ -156,33 +156,26 @@ func Start(ctx context.Context, url *url.URL, model string, headers map[string]s
 	}
 
 	// Get diff
-	cmd := exec.Command("git", "diff", "--staged")
-	diff, err := cmd.Output()
+	diffResp, err := diff()
 	if err != nil {
-		return errors.Join(err, errors.New(string(diff)))
-	}
-
-	// Remove unnecessary + prefix
-	input := ""
-	for line := range strings.SplitSeq(strings.TrimSuffix(string(diff), "\n"), "\n") {
-		input += strings.TrimPrefix(line, "+") + "\n"
+		return err
 	}
 
 	// Set keywords
 	keywords := []string{"fix", "feat", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test"}
 
-	// Send to ollama
+	// Set prompts
 	systemPrompt := fmt.Sprintf(`You are to act as an author of a commit message in git. 
 				You will be given the output of the 'git diff --staged' command, and you are to convert it into a commit message. 
 				Craft a concise, single sentence commit message that encapsulates all changes made, with an emphasis on the primary updates. 
 				If the modifications share a common theme or scope, mention it succinctly; otherwise, leave the scope out to maintain focus. 
 				The goal is to provide a clear and unified overview of the changes in one single message.
 				Do not preface the commit with anything except for the conventional commit keywords: %s.`, strings.Join(keywords, ", "))
-	prompt := fmt.Sprintf("%s\nHere is the output of 'git diff --staged': ```\n%s\n```", systemPrompt, input)
+	prompt := fmt.Sprintf("%s\nHere is the output of 'git diff --staged': ```\n%s\n```", systemPrompt, diffResp)
 
-	commit := ""
+	commitMsg := ""
 
-loop:
+retry:
 	for {
 		msgChan <- Msg{
 			kind: MsgLoading,
@@ -214,6 +207,8 @@ loop:
 						tag := startTag.FindStringSubmatch(thoughts)
 						if len(tag) >= 2 {
 							endTag = regexp.MustCompile(fmt.Sprintf("</%s>", tag[1]))
+
+							// Extract first thought
 							split := strings.SplitN(thoughts, startTag.FindString(thoughts), 2)
 							msgChan <- Msg{
 								text: split[1],
@@ -227,9 +222,10 @@ loop:
 					// End of thought
 					if endTag != nil && endTag.MatchString(thoughts) {
 						thinking = false
-						split := strings.SplitN(thoughts, endTag.FindString(thoughts), 2)
-						commit = split[1]
 
+						// Extract last thought & first response
+						split := strings.SplitN(thoughts, endTag.FindString(thoughts), 2)
+						response = split[1]
 						msgChan <- Msg{
 							text: split[0],
 							kind: MsgThought,
@@ -269,30 +265,34 @@ loop:
 			return nil
 		}
 
-		// Find commit message in response
-	finder:
-		for line := range strings.SplitSeq(response, "\n") {
+		// Extract commit message from response
+		lines := strings.Split(response, "\n")
+
+	extract:
+		for i := range lines {
+			line := lines[len(lines)-i-1] // backwards -> forwards
+
 			for _, keyword := range keywords {
-				if !strings.Contains(line, keyword+":") {
+				if !strings.Contains(line, keyword) {
 					continue
 				}
 
 				// Remove special characters
 				response = strings.ReplaceAll(line, "`", "")
 				response = strings.ReplaceAll(response, "*", "")
-				break finder
+				break extract
 			}
 		}
 
 		// Format response into commit
-		commit = strings.TrimSpace(response)
-		if commit == "" {
+		commitMsg = strings.TrimSpace(response)
+		if commitMsg == "" {
 			return errors.New("no commit message found")
 		}
 
-		// Send commit to user
+		// Have user validate commit message
 		msgChan <- Msg{
-			text: commit,
+			text: commitMsg,
 			kind: MsgDone,
 		}
 
@@ -305,23 +305,51 @@ loop:
 		// Check if user wants to retry
 		case retry := <-retryChan:
 			if retry == 0 {
-				break loop
+				break retry
 			}
 		}
 	}
 
 	// Commit
-	cmd = exec.Command("git", "commit", "-m", commit)
-	gitCommit, err := cmd.Output()
+	commitResp, err := commit(commitMsg)
 	if err != nil {
-		return errors.Join(err, errors.New(string(gitCommit)))
+		return err
 	}
 	msgChan <- Msg{
 		kind: MsgThought,
-		text: string(gitCommit),
+		text: string(commitResp),
 	}
 
 	return nil
+}
+
+// git diff --staged
+func diff() (string, error) {
+	// Get diff
+	cmd := exec.Command("git", "diff", "--staged")
+	diff, err := cmd.Output()
+	if err != nil {
+		return "", errors.Join(err, errors.New(string(diff)))
+	}
+
+	// Remove unnecessary + prefix
+	diffStr := ""
+	for line := range strings.SplitSeq(strings.TrimSuffix(string(diff), "\n"), "\n") {
+		diffStr += strings.TrimPrefix(line, "+") + "\n"
+	}
+
+	return diffStr, nil
+}
+
+// git commit -m
+func commit(message string) (string, error) {
+	cmd := exec.Command("git", "commit", "-m", message)
+	gitCommit, err := cmd.Output()
+	if err != nil {
+		return "", errors.Join(err, errors.New(string(gitCommit)))
+	}
+
+	return string(gitCommit), nil
 }
 
 type AuthMiddleware struct {

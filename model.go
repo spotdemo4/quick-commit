@@ -150,7 +150,7 @@ func (m Model) View() string {
 	}
 	msgs += "\n\n"
 
-	// Set width & height for footer
+	// Set width & height
 	main = main.Height(*m.height - 1)
 	footer := m.footer.Width(*m.width)
 
