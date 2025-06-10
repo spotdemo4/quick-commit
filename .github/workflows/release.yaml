@@ -23,12 +23,12 @@ jobs:
       - name: Build
         run: >
           nix build
-          .#treli-linux-amd64
-          .#treli-linux-arm64
-          .#treli-linux-arm
-          .#treli-windows-amd64
-          .#treli-darwin-amd64
-          .#treli-darwin-arm64
+          .#quick-commit-linux-amd64
+          .#quick-commit-linux-arm64
+          .#quick-commit-linux-arm
+          .#quick-commit-windows-amd64
+          .#quick-commit-darwin-amd64
+          .#quick-commit-darwin-arm64
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

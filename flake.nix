@@ -6,7 +6,7 @@
   };
 
   outputs = {nixpkgs, ...}: let
-    pname = "qc";
+    pname = "quick-commit";
     version = "0.0.1";
 
     build-systems = [
