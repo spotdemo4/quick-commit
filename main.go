@@ -173,10 +173,13 @@ func Start(ctx context.Context, url *url.URL, model string, headers map[string]s
 
 	// Send to ollama
 	systemPrompt := fmt.Sprintf(`You are to act as an author of a commit message in git. 
-				Above is the output of a 'git diff --staged' command, you are to convert it into a commit message. 
-				Craft a concise, single sentence, commit message that encapsulates all changes made, with an emphasis on the primary updates. If the modifications share a common theme or scope, mention it succinctly; otherwise, leave the scope out to maintain focus. The goal is to provide a clear and unified overview of the changes in one single message.
-				Do not preface the commit with anything, except for the conventional commit keywords: %s.`, strings.Join(keywords, ", "))
+				You will be given the output of the 'git diff --staged' command, and you are to convert it into a commit message. 
+				Craft a concise, single sentence commit message that encapsulates all changes made, with an emphasis on the primary updates. 
+				If the modifications share a common theme or scope, mention it succinctly; otherwise, leave the scope out to maintain focus. 
+				The goal is to provide a clear and unified overview of the changes in one single message.
+				Do not preface the commit with anything except for the conventional commit keywords: %s.`, strings.Join(keywords, ", "))
 	prompt := fmt.Sprintf("%s\nHere is the output of 'git diff --staged': ```\n%s\n```", systemPrompt, input)
+
 	commit := ""
 
 loop:
@@ -186,6 +189,7 @@ loop:
 		}
 
 		thoughts := ""
+		response := ""
 		thinking := false
 		startTag := regexp.MustCompile("<(.*)>")
 		var endTag *regexp.Regexp
@@ -220,7 +224,7 @@ loop:
 						return nil
 					}
 
-					// End the thought
+					// End of thought
 					if endTag != nil && endTag.MatchString(thoughts) {
 						thinking = false
 						split := strings.SplitN(thoughts, endTag.FindString(thoughts), 2)
@@ -232,7 +236,7 @@ loop:
 						}
 						msgChan <- Msg{
 							text: split[1],
-							kind: MsgCommit,
+							kind: MsgResponse,
 						}
 
 						return nil
@@ -246,11 +250,11 @@ loop:
 					return nil
 				}
 
-				// This is a commit
-				commit += gr.Response
+				// This is a response
+				response += gr.Response
 				msgChan <- Msg{
 					text: gr.Response,
-					kind: MsgCommit,
+					kind: MsgResponse,
 				}
 
 				return nil
@@ -265,38 +269,40 @@ loop:
 			return nil
 		}
 
-		// Find commit message in output
+		// Find commit message in response
 	finder:
-		for line := range strings.SplitSeq(commit, "\n") {
+		for line := range strings.SplitSeq(response, "\n") {
 			for _, keyword := range keywords {
 				if !strings.Contains(line, keyword+":") {
 					continue
 				}
 
 				// Remove special characters
-				commit = strings.ReplaceAll(line, "`", "")
-				commit = strings.ReplaceAll(commit, "*", "")
+				response = strings.ReplaceAll(line, "`", "")
+				response = strings.ReplaceAll(response, "*", "")
 				break finder
 			}
 		}
 
-		// Format commit
-		commit = strings.TrimSpace(commit)
+		// Format response into commit
+		commit = strings.TrimSpace(response)
 		if commit == "" {
-			return err
+			return errors.New("no commit message found")
 		}
 
-		// Check if user wants to retry
+		// Send commit to user
 		msgChan <- Msg{
 			text: commit,
 			kind: MsgDone,
 		}
+
 		select {
 
 		// Check if user quit
 		case <-ctx.Done():
 			return nil
 
+		// Check if user wants to retry
 		case retry := <-retryChan:
 			if retry == 0 {
 				break loop

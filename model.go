@@ -144,7 +144,7 @@ func (m Model) View() string {
 		switch msg.kind {
 		case MsgThought:
 			msgs += m.subtext.Render(msg.text)
-		case MsgCommit:
+		case MsgResponse:
 			msgs += m.accent.Render(msg.text)
 		}
 	}

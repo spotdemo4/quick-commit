@@ -6,16 +6,15 @@ const (
 	MsgLoading MsgType = iota
 	MsgDiff
 	MsgThought
-	MsgCommit
+	MsgResponse
 	MsgDone
 )
 
 var stateName = map[MsgType]string{
-	MsgLoading: "loading",
-	MsgDiff:    "diff",
-	MsgThought: "thinking",
-	MsgCommit:  "commit",
-	MsgDone:    "done",
+	MsgLoading:  "loading",
+	MsgThought:  "thinking",
+	MsgResponse: "response",
+	MsgDone:     "done",
 }
 
 func (ss MsgType) String() string {
