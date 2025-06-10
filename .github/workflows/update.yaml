@@ -30,6 +30,9 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           delete-branch: true
-          title: Bump deps
+          branch: update
+          title: update
+          body: automatic update
+          commit-message: "build(deps): update"
 
 
