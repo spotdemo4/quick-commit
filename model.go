@@ -143,12 +143,12 @@ func (m Model) View() string {
 	for _, msg := range m.msgs {
 		switch msg.kind {
 		case MsgThought:
-			msgs += m.text.Render(msg.text)
+			msgs += m.subtext.Render(msg.text)
 		case MsgCommit:
 			msgs += m.accent.Render(msg.text)
 		}
 	}
-	msgs += "\n"
+	msgs += "\n\n"
 
 	// Set width & height for footer
 	main = main.Height(*m.height - 1)
