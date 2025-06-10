@@ -28,20 +28,21 @@ func main() {
 	} else {
 		err := godotenv.Load(filepath.Join(configDir, "quick-commit.env"))
 		if err != nil {
-			printWarn("warning: could not load .env")
+			printWarn("warning: could not load %s", filepath.Join(configDir, "quick-commit.env"))
 		}
 	}
 
 	// Get env vars
-	surl := os.Getenv("QC_URL")
-	if surl == "" {
-		url := "http://localhost:11434"
-		printWarn("warning: 'QC_URL' not set, defaulting to %s", url)
+	urlStr := os.Getenv("QC_URL")
+	if urlStr == "" {
+		urlStr := "http://localhost:11434"
+		printWarn("warning: 'QC_URL' not set, defaulting to %s", urlStr)
 	}
-	url, err := url.Parse(surl)
+	url, err := url.Parse(urlStr)
 	if err != nil {
 		printErr("error: could not parse url: %v", err)
 	}
+
 	model := os.Getenv("QC_MODEL")
 	if model == "" {
 		printErr("error: 'QC_MODEL' not set")
@@ -159,6 +160,9 @@ func Start(ctx context.Context, url *url.URL, model string, headers map[string]s
 	diffResp, err := diff()
 	if err != nil {
 		return err
+	}
+	if strings.TrimSpace(diffResp) == "" {
+		return errors.New(`no changes added to commit (use "git add" and/or "git commit -a")`)
 	}
 
 	// Set keywords
@@ -317,7 +321,7 @@ retry:
 	}
 	msgChan <- Msg{
 		kind: MsgThought,
-		text: string(commitResp),
+		text: commitResp,
 	}
 
 	return nil
@@ -332,7 +336,7 @@ func diff() (string, error) {
 		return "", errors.Join(err, errors.New(string(diff)))
 	}
 
-	// Remove unnecessary + prefix
+	// Remove unnecessary '+' prefix
 	diffStr := ""
 	for line := range strings.SplitSeq(strings.TrimSuffix(string(diff), "\n"), "\n") {
 		diffStr += strings.TrimPrefix(line, "+") + "\n"
