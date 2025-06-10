@@ -7,7 +7,7 @@
 
   outputs = {nixpkgs, ...}: let
     pname = "quick-commit";
-    version = "0.0.1";
+    version = "0.0.2";
 
     build-systems = [
       "x86_64-linux"
