@@ -168,14 +168,17 @@ func Start(ctx context.Context, url *url.URL, model string, headers map[string]s
 		input += strings.TrimPrefix(line, "+") + "\n"
 	}
 
+	// Set keywords
+	keywords := []string{"fix", "feat", "build", "chore", "ci", "docs", "style", "refactor", "perf", "test"}
+
 	// Send to ollama
-	systemPrompt := `You are to act as an author of a commit message in git. 
+	systemPrompt := fmt.Sprintf(`You are to act as an author of a commit message in git. 
 				Above is the output of a 'git diff --staged' command, you are to convert it into a commit message. 
 				Craft a concise, single sentence, commit message that encapsulates all changes made, with an emphasis on the primary updates. If the modifications share a common theme or scope, mention it succinctly; otherwise, leave the scope out to maintain focus. The goal is to provide a clear and unified overview of the changes in one single message.
-				Do not preface the commit with anything, except for the conventional commit keywords: fix, feat, build, chore, ci, docs, style, refactor, perf, test.`
+				Do not preface the commit with anything, except for the conventional commit keywords: %s.`, strings.Join(keywords, ", "))
 	prompt := fmt.Sprintf("%s\nHere is the output of 'git diff --staged': ```\n%s\n```", systemPrompt, input)
-
 	commit := ""
+
 loop:
 	for {
 		msgChan <- Msg{
@@ -262,6 +265,21 @@ loop:
 			return nil
 		}
 
+		// Find commit message in output
+	finder:
+		for line := range strings.SplitSeq(commit, "\n") {
+			for _, keyword := range keywords {
+				if !strings.Contains(line, keyword+":") {
+					continue
+				}
+
+				// Remove special characters
+				commit = strings.ReplaceAll(line, "`", "")
+				commit = strings.ReplaceAll(commit, "*", "")
+				break finder
+			}
+		}
+
 		// Format commit
 		commit = strings.TrimSpace(commit)
 		if commit == "" {
@@ -270,6 +288,7 @@ loop:
 
 		// Check if user wants to retry
 		msgChan <- Msg{
+			text: commit,
 			kind: MsgDone,
 		}
 		select {

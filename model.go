@@ -95,6 +95,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "n", "N":
 			if lastMsg.kind == MsgDone {
+				m.msgs = []Msg{} // empty msgs array
 				m.retryChan <- 1
 			}
 
@@ -108,9 +109,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		return m, cmd
-
-	case tea.QuitMsg:
-		return m, tea.Quit
 
 	case tea.WindowSizeMsg:
 		m.width = &msg.Width
@@ -165,9 +163,10 @@ func (m Model) View() string {
 		return lipgloss.JoinVertical(lipgloss.Top, main.Render(m.spinner.View()), footer.Render(elapsed))
 
 	case MsgDone:
+		final := m.accent.Bold(true).Render(lastMsg.text) + "\n"
 		retry := m.text.Render("looks good? (Y/n): ")
 		elapsed := m.subtext.Render(fmt.Sprintf("took: %s", m.stopwatch.View()))
-		return lipgloss.JoinVertical(lipgloss.Top, main.Render(msgs+retry), footer.Render(elapsed))
+		return lipgloss.JoinVertical(lipgloss.Top, main.Render(msgs+final+retry), footer.Render(elapsed))
 
 	default:
 		elapsed := m.subtext.Render(fmt.Sprintf("elapsed: %s", m.stopwatch.View()))
