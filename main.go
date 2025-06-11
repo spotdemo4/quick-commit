@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	version  = "0.0.2"
+	version  = "0.0.4"
 	keywords = []string{"feat", "fix", "docs", "style", "perf", "test", "build", "chore"}
 )
 
