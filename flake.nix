@@ -128,7 +128,7 @@
         qc = pkgs.buildGoModule {
           inherit pname version;
           src = ./.;
-          vendorHash = "sha256-5TusE8zDUPR29Jc+ZYw144ZZnk55KnE6qODKWwUAAKo=";
+          vendorHash = "sha256-SRUblxi6ZVj/lsnOHdAa3RvFXoK2C70KaBs3X2JJSZk=";
           env.CGO_ENABLED = 0;
         };
       in
