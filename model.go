@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/stopwatch"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -19,6 +20,7 @@ type Model struct {
 
 	spinner   spinner.Model
 	stopwatch stopwatch.Model
+	textInput textinput.Model
 	width     *int
 	height    *int
 
@@ -38,6 +40,7 @@ func NewModel(msgChan chan Msg, retryChan chan int) Model {
 		Foreground(lipgloss.AdaptiveColor{Light: "#04a5e5", Dark: "#89dceb"})
 	s := spinner.New(spinner.WithSpinner(spinner.Dot))
 	sw := stopwatch.New()
+	ti := textinput.New()
 
 	return Model{
 		main:    main,
@@ -48,6 +51,7 @@ func NewModel(msgChan chan Msg, retryChan chan int) Model {
 
 		spinner:   s,
 		stopwatch: sw,
+		textInput: ti,
 		retryChan: retryChan,
 		msgChan:   msgChan,
 		msgs:      []Msg{},
@@ -160,16 +164,20 @@ func (m Model) View() string {
 	case MsgLoading:
 		main = main.Align(lipgloss.Center, lipgloss.Center)
 		elapsed := m.subtext.Render(fmt.Sprintf("elapsed %s", m.stopwatch.View()))
+
 		return lipgloss.JoinVertical(lipgloss.Top, main.Render(m.spinner.View()), footer.Render(elapsed))
 
 	case MsgDone:
-		final := m.accent.Bold(true).Render(lastMsg.text) + "\n"
-		retry := m.text.Render("looks good? (Y/n): ")
+		commitMsg := m.accent.Bold(true).Render(lastMsg.text) + "\n"
+		retry := m.text.Render("looks good? (Y/n)\n")
+		input := m.textInput.View()
 		elapsed := m.subtext.Render(fmt.Sprintf("took: %s", m.stopwatch.View()))
-		return lipgloss.JoinVertical(lipgloss.Top, main.Render(msgs+final+retry), footer.Render(elapsed))
+
+		return lipgloss.JoinVertical(lipgloss.Top, main.Render(msgs+commitMsg+retry+input), footer.Render(elapsed))
 
 	default:
 		elapsed := m.subtext.Render(fmt.Sprintf("elapsed: %s", m.stopwatch.View()))
+
 		return lipgloss.JoinVertical(lipgloss.Top, main.Render(msgs), footer.Render(elapsed))
 	}
 }

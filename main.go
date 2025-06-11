@@ -128,7 +128,7 @@ func main() {
 		wg.Done()
 	}()
 
-	// Wait for both model & ollama
+	// Wait for both tea & ollama
 	wg.Wait()
 
 	if teaErr != nil {
