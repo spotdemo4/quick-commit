@@ -1,20 +1,19 @@
-package main
+package tui
 
 type MsgType int
 
 const (
 	MsgLoading MsgType = iota
-	MsgDiff
 	MsgThought
 	MsgResponse
-	MsgDone
+	MsgCommit
 )
 
 var stateName = map[MsgType]string{
 	MsgLoading:  "loading",
 	MsgThought:  "thinking",
 	MsgResponse: "response",
-	MsgDone:     "done",
+	MsgCommit:   "done",
 }
 
 func (ss MsgType) String() string {
@@ -22,6 +21,6 @@ func (ss MsgType) String() string {
 }
 
 type Msg struct {
-	text string
-	kind MsgType
+	Text string
+	Type MsgType
 }
