@@ -35,7 +35,7 @@ var (
 type Tui struct {
 	spinner   spinner.Model
 	stopwatch stopwatch.Model
-	picker    picker
+	picker    Picker
 	width     *int
 	height    *int
 

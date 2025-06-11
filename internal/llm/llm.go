@@ -15,15 +15,16 @@ import (
 )
 
 type Llm struct {
-	ollama  *api.Client
-	model   string
-	headers map[string]string
-	options map[string]any
+	ollama *api.Client
+
+	keywords []string
+	model    string
+	options  map[string]any
 
 	output chan tui.Msg
 }
 
-func New(ctx context.Context, url *url.URL, model string, headers map[string]string, options map[string]any, output chan tui.Msg) (*Llm, error) {
+func New(ctx context.Context, keywords []string, url *url.URL, model string, headers map[string]string, options map[string]any, output chan tui.Msg) (*Llm, error) {
 	// Create http client
 	client := &http.Client{
 		Timeout: 5 * time.Minute,
@@ -42,7 +43,10 @@ func New(ctx context.Context, url *url.URL, model string, headers map[string]str
 
 	return &Llm{
 		ollama: ollama,
-		model:  model,
+
+		keywords: keywords,
+		model:    model,
+		options:  options,
 
 		output: output,
 	}, nil
@@ -55,7 +59,7 @@ func (l *Llm) GenerateCommit(ctx context.Context, diff string, keyword string) (
 				Craft a concise, single sentence commit message that encapsulates all changes made, with an emphasis on the primary updates. 
 				If the modifications share a common theme or scope, mention it succinctly; otherwise, leave the scope out to maintain focus. 
 				The goal is to provide a clear and unified overview of the changes in one single message.
-				This is a '%s' commit, do not preface the commit with anything other than the conventional commit type %s.`, keyword, keyword)
+				This is a '%s' commit, preface the commit with the conventional commit type '%s:'.`, keyword, keyword)
 	prompt := fmt.Sprintf("%s\nHere is the output of 'git diff --staged': ```\n%s\n```", systemPrompt, diff)
 
 	// Start loading spinner
@@ -149,25 +153,48 @@ func (l *Llm) GenerateCommit(ctx context.Context, diff string, keyword string) (
 	}
 
 	// Extract commit message from generated response
+	commitMsg := ""
 	lines := strings.Split(response, "\n")
+
+	// Check if lines contains specified keyword
 	for i := range lines {
 		line := lines[len(lines)-i-1] // backwards -> forwards
 
-		if !strings.Contains(line, keyword) {
-			continue
-		}
+		if strings.Contains(line, keyword) {
+			_, after, _ := strings.Cut(line, keyword)
+			commitMsg = keyword + after
 
-		// Remove special characters
-		response = strings.ReplaceAll(line, "`", "")
-		response = strings.ReplaceAll(response, "*", "")
-		break
+			break
+		}
 	}
 
-	// Format response into commitMsg
-	commitMsg := strings.TrimSpace(response)
+	// If not yet found, check all keywords
+	if commitMsg == "" {
+	keywords:
+		for i := range lines {
+			line := lines[len(lines)-i-1] // backwards -> forwards
+
+			for _, keyword := range l.keywords {
+				if strings.Contains(line, keyword) {
+					_, after, _ := strings.Cut(line, keyword)
+					commitMsg = keyword + after
+
+					break keywords
+				}
+			}
+		}
+	}
+
 	if commitMsg == "" {
 		return "", errors.New("no commit message found")
 	}
+
+	// Remove special characters
+	commitMsg = strings.ReplaceAll(commitMsg, "`", "")
+	commitMsg = strings.ReplaceAll(commitMsg, "*", "")
+
+	// Trim whitespace
+	commitMsg = strings.TrimSpace(commitMsg)
 
 	return commitMsg, nil
 }

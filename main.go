@@ -8,10 +8,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/spotdemo4/quick-commit/internal/ctxutil"
 	"github.com/spotdemo4/quick-commit/internal/git"
 	"github.com/spotdemo4/quick-commit/internal/llm"
 	"github.com/spotdemo4/quick-commit/internal/tui"
-	"github.com/spotdemo4/quick-commit/internal/util"
 )
 
 var (
@@ -42,7 +42,7 @@ func main() {
 	outputChan := make(chan tui.Msg, 10)
 
 	// Create llm
-	llm, err := llm.New(ctx, conf.url, conf.model, conf.headers, conf.options, outputChan)
+	llm, err := llm.New(ctx, keywords, conf.url, conf.model, conf.headers, conf.options, outputChan)
 	if err != nil {
 		tui.PrintErr("llm error: %v", err)
 		os.Exit(1)
@@ -74,7 +74,7 @@ func main() {
 		defer cancel()
 
 		// Get keyword selection from user
-		keyword, ok := util.Next(ctx, inputChan)
+		keyword, ok := ctxutil.Next(ctx, inputChan)
 		if !ok {
 			return
 		}
@@ -99,7 +99,7 @@ func main() {
 			}
 
 			// Get validation from user
-			input, ok := util.Next(ctx, inputChan)
+			input, ok := ctxutil.Next(ctx, inputChan)
 			if !ok {
 				return
 			}

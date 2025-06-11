@@ -17,7 +17,7 @@ var (
 	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
 )
 
-func NewPicker(values []string) picker {
+func NewPicker(values []string) Picker {
 	// Turn list values into items
 	items := []list.Item{}
 	minWidth := 9
@@ -40,21 +40,21 @@ func NewPicker(values []string) picker {
 	l.Styles.Title = titleStyle
 	l.Styles.PaginationStyle = paginationStyle
 
-	return picker{
+	return Picker{
 		List:      l,
 		minWidth:  minWidth,
 		minHeight: minHeight,
 	}
 }
 
-type picker struct {
+type Picker struct {
 	List list.Model
 
 	minWidth  int
 	minHeight int
 }
 
-func (p *picker) Update(width int, height int) {
+func (p *Picker) Update(width int, height int) {
 	if width < p.List.Width() {
 		p.List.SetWidth(width)
 	} else {
