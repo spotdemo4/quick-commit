@@ -7,7 +7,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.5
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/joho/godotenv v1.5.1
-	github.com/ollama/ollama v0.9.0
+	github.com/ollama/ollama v0.9.1
 )
 
 require (
